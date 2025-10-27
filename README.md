@@ -1,7 +1,8 @@
 # 💸 SpendWise – Personal Finance Tracker
 
 > **SpendWise** is a modern **Personal Finance & Budget Tracking App** built with  
-> **Spring Boot (Java 21)** for the backend and **React + TypeScript** for the frontend.
+> **Node.js + TypeScript** for the API Gateway and **Symfony 7 + API Platform** for the Finance Service,  
+> paired with a **React + TypeScript** frontend.
 
 SpendWise helps you **organise your accounts, track expenses, create budgets, and analyse your spending habits** — securely and effortlessly.
 
@@ -16,6 +17,7 @@ SpendWise helps you **organise your accounts, track expenses, create budgets, an
   - Role-based access control (`USER`, `ADMIN`)
 
 - 💳 **Accounts & Categories**
+  - Managed by Symfony Finance Service
   - Multiple accounts: Cash, Bank, Card, Savings
   - Hierarchical expense categories
 
@@ -42,39 +44,43 @@ SpendWise helps you **organise your accounts, track expenses, create budgets, an
 
 ## 🏗️ Architecture Overview
 
-SpendWise starts as a **modular monolith** for simplicity and maintainability.
+SpendWise follows a **modular service-oriented architecture**:
 
 ```
 SpendWise/
 ├─ apps/
-│  ├─ api/              # Backend – Spring Boot
-│  └─ web/              # Frontend – React + TypeScript
+│  ├─ gateway/           # Node.js + TypeScript – Auth, orchestration, integrations
+│  ├─ finance-api/       # Symfony + API Platform – domain logic & persistence
+│  └─ web/               # React + TypeScript frontend
 ├─ infra/
-│  └─ docker/           # Docker Compose for dev (Postgres, Redis, Mailhog)
+│  └─ docker/            # Docker Compose for local dev (Postgres, Redis, Mailhog)
 └─ README.md
 ```
 
 ### Tech Stack
-| Layer             | Technology                                |
-|-------------------|------------------------------------------|
-| Backend           | Spring Boot 3.3+, Java 21                |
-| Auth              | JWT Access/Refresh (OAuth2 RS)           |
-| Database          | PostgreSQL + Flyway                      |
-| Frontend          | React 19 + TypeScript + Vite             |
-| Documentation     | OpenAPI / Swagger                        |
-| Testing           | JUnit 5 + Testcontainers (PostgreSQL)    |
-| Dev Infrastructure| Docker Compose (Postgres, Redis, Mailhog)|
-| Future Storage    | S3 / MinIO for receipt images            |
+
+| Layer             | Technology |
+|-------------------|------------|
+| Gateway Backend   | Node.js 22 + TypeScript (NestJS / Fastify) |
+| Domain Service    | Symfony 7 + API Platform + Doctrine |
+| Database          | PostgreSQL + Flyway / Doctrine migrations |
+| Caching           | Redis |
+| Frontend          | React 19 + TypeScript + Vite |
+| Documentation     | Swagger (Node) + API Docs (API Platform) |
+| Testing           | Jest (Node) + PHPUnit (Symfony) |
+| Dev Infrastructure| Docker Compose (Postgres, Redis, Mailhog) |
+| Storage (future)  | S3 / MinIO for receipt images |
 
 ---
 
 ## 🚀 Getting Started
 
 ### 1. Prerequisites
-- Java 21
-- Gradle 8+
+- Node.js 22+
+- pnpm / npm / yarn
+- PHP 8.3+
+- Composer
 - Docker & Docker Compose
-- Node 18+ (for frontend later)
 
 ### 2. Clone the Repository
 ```bash
@@ -92,46 +98,40 @@ Services started:
 - 🔴 **Redis** → `localhost:6379`
 - 📬 **Mailhog** → [http://localhost:8025](http://localhost:8025)
 
-### 4. Run the Backend
+### 4. Run the Node Gateway
 ```bash
-cd apps/api
-./gradlew flywayMigrate bootRun
+cd apps/gateway
+pnpm install
+pnpm run dev
 ```
 - API → [http://localhost:8080](http://localhost:8080)  
-- Swagger UI → [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
+- Swagger UI → [http://localhost:8080/docs](http://localhost:8080/docs)
+
+### 5. Run the Symfony Finance API
+```bash
+cd apps/finance-api
+composer install
+symfony serve
+```
+- API Platform UI → [http://localhost:8000/api](http://localhost:8000/api)
 
 ---
 
-## 🔑 Core Modules
+## 🔑 Core Services
 
-- **AuthService** → login, register, refresh tokens, email verify
-- **AccountsService** → manage accounts and balances
-- **CategoriesService** → user-defined categories
-- **BudgetService** → monthly budgets per category
-- **TransactionService** → CRUD, splits, CSV import
-- **ReportService** → spending charts, budget vs actual
-
----
-
-## 🗄️ Database Schema (Simplified)
-
-- `users` – authentication & profile  
-- `accounts` – bank / cash / credit accounts  
-- `categories` – hierarchical expense categories  
-- `budgets` & `budget_items` – monthly budgets  
-- `transactions` (+ splits, tags) – expense / income / transfer logs  
-
-Migrations are handled by **Flyway** under  
-`apps/api/src/main/resources/db/migration/`.
+- **GatewayService (Node)** → authentication, token refresh, email verify, rate limit, MFA
+- **FinanceService (Symfony)** → accounts, categories, budgets, transactions, reports
+- **NotificationService (Node)** → emails, alerts, real-time updates
+- **FileService (Node)** → upload receipts to S3/MinIO
 
 ---
 
 ## 🔐 Security Highlights
 
-- Passwords hashed with **BCrypt**
-- **JWT**: short-lived Access + long-lived Refresh with rotation & revocation
-- Strict **CORS** for frontend domains
-- Rate-limit on login and password-reset endpoints
+- Passwords hashed with **Argon2 / BCrypt**
+- **JWT**: short-lived Access + long-lived Refresh with rotation
+- Strict **CORS** policy
+- Rate-limiting & IP blocking on sensitive endpoints
 - Security headers: **CSP, HSTS, X-Content-Type-Options, Referrer-Policy**
 
 ---
@@ -139,10 +139,9 @@ Migrations are handled by **Flyway** under
 ## 📈 Roadmap
 
 - [x] User auth (JWT, refresh, email verify)
-- [] Accounts / Categories CRUD
-- [] Budgets & Transactions MVP
-- [ ] Auto-categorisation rules
-- [ ] Recurring transactions
+- [ ] Accounts / Categories CRUD (Symfony)
+- [ ] Budgets & Transactions MVP (Symfony)
+- [ ] CSV Import & Splits
 - [ ] Receipt uploads (S3/MinIO)
 - [ ] Budget alerts & notifications
 - [ ] Multi-currency support
